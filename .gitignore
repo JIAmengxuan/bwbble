@@ -1,0 +1,5 @@
+/.idea
+/test_data
+cmake-build-debug
+.DS_Store
+*.o
