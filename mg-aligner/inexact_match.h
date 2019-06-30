@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+#include "align.h"
+#include "bwt.h"
+
 typedef struct {
 	int num_diff;
 	int sa_intv_width;

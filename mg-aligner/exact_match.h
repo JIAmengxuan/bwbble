@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+#include "bwt.h"
+
 // Exact matching (using backwards search)
 int align_reads_exact(bwt_t *BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals, const aln_params_t* params, char* alnsFname);
 int exact_match(bwt_t *BWT, read_t* read, sa_intv_list_t** sa_intervals, const aln_params_t* params);

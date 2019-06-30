@@ -14,7 +14,10 @@
 #include "align.h"
 #include "inexact_match.h"
 #include "exact_match.h"
+#include "ThreadPool1.h"
 #include <omp.h>
+
+void open_mp(const int tid, const int n_threads, const int batch_size, const int num_processed, bwt_t* BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals_table, aln_params_t* params);
 
 void calculate_d(bwt_t* BWT, char* read, const int readLen, diff_lower_bound_t* D, aln_params_t* params);
 
@@ -89,7 +92,7 @@ int align_reads_inexact(bwt_t *BWT, reads_t* reads, sa_intv_list_t* precalc_sa_i
 }
 
 // naive parallelization scheme (1 thread <=> 1 read)
-int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals_table, aln_params_t* params, char* alnFname) {
+int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals_table, aln_params_t* params, char* alnFname) {
 	printf("BWT-SNP Inexact Alignment...\n");
 	FILE* alnFile = (FILE*) fopen(alnFname, "a+");
 	if (alnFile == NULL) {
@@ -104,49 +107,54 @@ int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* pre
 		clock_t t = clock();
 		int batch_size = ((reads->count - num_processed) > READ_BATCH_SIZE ) ? READ_BATCH_SIZE : (reads->count - num_processed);
 
-		omp_set_num_threads(params->n_threads);
-		int tid, n_threads, chunk_start, chunk_end;
-		diff_lower_bound_t* D, * D_seed;
-		priority_heap_t* heap;
-		#pragma omp parallel private(tid, n_threads, chunk_start, chunk_end, D, D_seed, heap)
-		{
-			tid = omp_get_thread_num();
-			n_threads = omp_get_num_threads();
-			chunk_start = tid * batch_size / n_threads;
-			chunk_end = (tid + 1) * batch_size / n_threads;
-
-			// lower bound on the number of differences at each position in the read
-			D = (diff_lower_bound_t*) calloc(reads->max_len+1, sizeof(diff_lower_bound_t));
-			// lower bound for the read seed positions
-			D_seed = (diff_lower_bound_t*) calloc(params->seed_length+1, sizeof(diff_lower_bound_t));
-			// partial alignments min-heap
-			heap = heap_init(params);
-
-			for (int i = num_processed + chunk_start; i < num_processed + chunk_end; i++) {
-				read_t* read = &reads->reads[i];
-				read->alns = init_alignments();
-				sa_intv_list_t* precalc_sa_intervals = NULL;
-				if(params->use_precalc) {
-					// discard reads that have N's in the last PRECALC_INTERVAL_LENGTH bases (<0 result from read_index)
-					int read_index = read2index(read->rc, read->len);
-					if(read_index < 0) {
-						continue;
-					}
-					precalc_sa_intervals = &(precalc_sa_intervals_table[read_index]);
-				}
-
-				// align read with forward reference <=> read reverse complement with BWT reverse complement
-				// align read with reverse complement reference <=> read reverse complement with BWT forward
-				calculate_d(BWT, read->seq, read->len, D, params);
-				if(params->seed_length && read->len > params->seed_length) {
-					calculate_d(BWT, read->seq, params->seed_length, D_seed, params);
-				}
-				inexact_match(BWT, read->rc, read->len, heap, precalc_sa_intervals, params, D, D_seed, read->alns);
-			}
-			free(D);
-			free(D_seed);
-			heap_free(heap);
-		}
+		ThreadPool1 threadPool(static_cast<size_t>(params->n_threads));
+		for(int i = 0; i < params->n_threads; i++) {
+            threadPool.submit(open_mp, i, params->n_threads, batch_size, num_processed, BWT, reads, precalc_sa_intervals_table, params);
+        }
+        threadPool.waitAll();
+//		omp_set_num_threads(params->n_threads);
+//		int tid, n_threads, chunk_start, chunk_end;
+//		diff_lower_bound_t* D, * D_seed;
+//		priority_heap_t* heap;
+//		#pragma omp parallel private(tid, n_threads, chunk_start, chunk_end, D, D_seed, heap)
+//		{
+//			tid = omp_get_thread_num();
+//			n_threads = omp_get_num_threads();
+//			chunk_start = tid * batch_size / n_threads;
+//			chunk_end = (tid + 1) * batch_size / n_threads;
+//
+//			// lower bound on the number of differences at each position in the read
+//			D = (diff_lower_bound_t*) calloc(reads->max_len+1, sizeof(diff_lower_bound_t));
+//			// lower bound for the read seed positions
+//			D_seed = (diff_lower_bound_t*) calloc(params->seed_length+1, sizeof(diff_lower_bound_t));
+//			// partial alignments min-heap
+//			heap = heap_init(params);
+//
+//			for (int i = num_processed + chunk_start; i < num_processed + chunk_end; i++) {
+//				read_t* read = &reads->reads[i];
+//				read->alns = init_alignments();
+//				sa_intv_list_t* precalc_sa_intervals = NULL;
+//				if(params->use_precalc) {
+//					// discard reads that have N's in the last PRECALC_INTERVAL_LENGTH bases (<0 result from read_index)
+//					int read_index = read2index(read->rc, read->len);
+//					if(read_index < 0) {
+//						continue;
+//					}
+//					precalc_sa_intervals = &(precalc_sa_intervals_table[read_index]);
+//				}
+//
+//				// align read with forward reference <=> read reverse complement with BWT reverse complement
+//				// align read with reverse complement reference <=> read reverse complement with BWT forward
+//				calculate_d(BWT, read->seq, read->len, D, params);
+//				if(params->seed_length && read->len > params->seed_length) {
+//					calculate_d(BWT, read->seq, params->seed_length, D_seed, params);
+//				}
+//				inexact_match(BWT, read->rc, read->len, heap, precalc_sa_intervals, params, D, D_seed, read->alns);
+//			}
+//			free(D);
+//			free(D_seed);
+//			heap_free(heap);
+//		}
 		printf("Processed %d reads. Inexact matching time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC);
 
 		// write the results to file
@@ -160,11 +168,50 @@ int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* pre
 			free(read->qual);
 			read->seq = read->rc = read->qual = NULL;
 		}
+
 		printf("Storing results time: %.2f sec\n", (float)(clock() - ts) / CLOCKS_PER_SEC);
 		num_processed += batch_size;
 	}
 	fclose(alnFile);
 	return 0;
+}
+
+void open_mp(const int tid, const int n_threads, const int batch_size, const int num_processed, bwt_t* BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals_table, aln_params_t* params) {
+
+	int chunk_start = tid * batch_size / n_threads;
+	int chunk_end = (tid + 1) * batch_size / n_threads;
+
+	// lower bound on the number of differences at each position in the read
+	diff_lower_bound_t* D = (diff_lower_bound_t*) calloc(reads->max_len + 1, sizeof(diff_lower_bound_t));
+	// lower bound for the read seed positions
+	diff_lower_bound_t* D_seed = (diff_lower_bound_t*) calloc(params->seed_length + 1, sizeof(diff_lower_bound_t));
+	// partial alignments min-heap
+	priority_heap_t* heap = heap_init(params);
+
+	for (int i = num_processed + chunk_start; i < num_processed + chunk_end; i++) {
+		read_t* read = &reads->reads[i];
+		read->alns = init_alignments();
+		sa_intv_list_t* precalc_sa_intervals = NULL;
+		if(params->use_precalc) {
+			// discard reads that have N's in the last PRECALC_INTERVAL_LENGTH bases (<0 result from read_index)
+			int read_index = read2index(read->rc, read->len);
+			if(read_index < 0) {
+				continue;
+			}
+			precalc_sa_intervals = &(precalc_sa_intervals_table[read_index]);
+		}
+
+		// align read with forward reference <=> read reverse complement with BWT reverse complement
+		// align read with reverse complement reference <=> read reverse complement with BWT forward
+		calculate_d(BWT, read->seq, read->len, D, params);
+		if(params->seed_length && read->len > params->seed_length) {
+			calculate_d(BWT, read->seq, params->seed_length, D_seed, params);
+		}
+		inexact_match(BWT, read->rc, read->len, heap, precalc_sa_intervals, params, D, D_seed, read->alns);
+	}
+	free(D);
+	free(D_seed);
+	heap_free(heap);
 }
 
 // Lower bound on the number of differences at each position in the read (used in BWA)
