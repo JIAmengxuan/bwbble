@@ -75,7 +75,7 @@ private:
 ThreadPool1::ThreadPool1(size_t threads) : tasksNum(0), isShutdown(false)
 {
     for(int i = 0; i < threads; i++) {
-        std::cout << "From Thread--" << std::this_thread::get_id() << " saying: I am constructing" << std::endl;
+        //std::cout << "From Thread--" << std::this_thread::get_id() << " saying: I am constructing" << std::endl;
         std::thread workThread(std::bind(&ThreadPool1::initThread, this));
         workers.push_back(std::move(workThread));
     }
@@ -85,7 +85,7 @@ ThreadPool1::~ThreadPool1() {
     if(!isShutdown) {
         shutDown();
     }
-    std::cout << "I am destructed" << std::endl;
+    //std::cout << "I am destructed" << std::endl;
 }
 
 void ThreadPool1::shutDownNow() {
@@ -102,7 +102,7 @@ void ThreadPool1::shutDownNow() {
 }
 
 void ThreadPool1::shutDown(std::chrono::milliseconds waitTime) {
-    std::cout<< "Waiting all tasks for " << waitTime.count() << "ms and then collect resource" << std::endl;
+    //std::cout<< "Waiting all tasks for " << waitTime.count() << "ms and then collect resource" << std::endl;
     {
         std::unique_lock<std::mutex> lock(queueMutex);
         isShutdown = true;
@@ -182,18 +182,18 @@ std::future<std::invoke_result_t<Function, Args...>> ThreadPool1::submit(Functio
 
 void ThreadPool1::waitAll() {
     std::unique_lock<std::mutex> unique_lock(waitingMutex);
-    std::cout<< "Waiting all tasks ot finish"<< std::endl;
+    //std::cout<< "Waiting all tasks ot finish"<< std::endl;
     while(tasksNum != 0) {
         //std::cout << tasksNum << std::endl;
         // Keep waiting until the taskNum == 0, check the tasksNum only when be notified.
         this->condForWaiting.wait(unique_lock);
     }
-    std::cout<< "All tasks are finished" << std::endl;
+    //std::cout<< "All tasks are finished" << std::endl;
 }
 
 
 bool ThreadPool1::waitAllFor(std::chrono::milliseconds sleepDuration) {
-    std::cout<< "Waiting all tasks ot finish for " << sleepDuration.count() << "ms" << std::endl;
+    //std::cout<< "Waiting all tasks ot finish for " << sleepDuration.count() << "ms" << std::endl;
 
     auto startTime = std::chrono::high_resolution_clock::now();
     auto endTime = startTime + sleepDuration;
@@ -202,7 +202,7 @@ bool ThreadPool1::waitAllFor(std::chrono::milliseconds sleepDuration) {
     while(tasksNum != 0 || std::chrono::high_resolution_clock::now() >= endTime) {
         this->condForWaiting.wait(unique_lock);
     }
-    std::cout<< (tasksNum == 0 ? "All tasks are finished" : "Time out!") << std::endl;
+    //std::cout<< (tasksNum == 0 ? "All tasks are finished" : "Time out!") << std::endl;
     return tasksNum == 0;
 }
 
