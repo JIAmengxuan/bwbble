@@ -15,7 +15,6 @@
 #include "inexact_match.h"
 #include "exact_match.h"
 #include "ThreadPool1.h"
-#include <omp.h>
 
 void open_mp(const int tid, const int n_threads, const int batch_size, const int num_processed, bwt_t* BWT, reads_t* reads, sa_intv_list_t* precalc_sa_intervals_table, aln_params_t* params);
 
@@ -105,7 +104,7 @@ int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* pre
 	int num_processed = 0;
 	ThreadPool1 threadPool(static_cast<size_t>(params->n_threads));
 	while(num_processed < reads->count) {
-		time_t begin = time();
+		time_t begin = time(NULL);
 		clock_t t = clock();
 		int batch_size = ((reads->count - num_processed) > READ_BATCH_SIZE ) ? READ_BATCH_SIZE : (reads->count - num_processed);
 		for(int i = 0; i < params->n_threads; i++) {
@@ -155,7 +154,7 @@ int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* pre
 //			free(D_seed);
 //			heap_free(heap);
 //		}
-		printf("Processed %d reads. Inexact matching processor time: %.2f sec. wall time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC, (float)(time() - begin));
+		printf("Processed %d reads. Inexact matching processor time: %.2f sec. wall time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC, (float)(time(NULL) - begin));
 
 		// write the results to file
 		clock_t ts = clock();
@@ -640,18 +639,19 @@ void heap_push(priority_heap_t *heap, const int i, const bwtint_t L, const bwtin
 
 // returns the entry with the best (lowest) score
 void heap_pop(priority_heap_t* heap, aln_entry_t* e) {
-	heap_bucket_t* hb = &(heap->buckets[heap->best_score]);
-	aln_entry_t* et = &(hb->entries[hb->num_entries - 1]);
-	hb->num_entries--;
-	heap->num_entries--;
+    heap_bucket_t *hb = &(heap->buckets[heap->best_score]);
+    aln_entry_t *et = &(hb->entries[hb->num_entries - 1]);
+    hb->num_entries--;
+    heap->num_entries--;
 
-	if ((hb->num_entries == 0) && heap->num_entries) { // find the next best score
-		int i;
-		for (i = heap->best_score + 1; i < heap->num_buckets; i++) {
-			if (heap->buckets[i].num_entries != 0) break;
-		}
-		heap->best_score = i;
-	} else if (heap->num_entries == 0) {
-		heap->best_score = heap->num_buckets;
-	}
-	memcpy(e, et, sizeof(aln_entry_t));
+    if ((hb->num_entries == 0) && heap->num_entries) { // find the next best score
+        int i;
+        for (i = heap->best_score + 1; i < heap->num_buckets; i++) {
+            if (heap->buckets[i].num_entries != 0) break;
+        }
+        heap->best_score = i;
+    } else if (heap->num_entries == 0) {
+        heap->best_score = heap->num_buckets;
+    }
+    memcpy(e, et, sizeof(aln_entry_t));
+}
