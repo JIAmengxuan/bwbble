@@ -66,6 +66,7 @@ int align_reads(char* fastaFname, char* readsFname, char* alnsFname, aln_params_
 	}
 
 	t = clock();
+	time_t begin = time();
 	//if(params->max_diff == 0) {
 		//align_reads_exact(BWT, reads, sa_intv_table, params, alnsFname);
 	//} else {
@@ -75,7 +76,7 @@ int align_reads(char* fastaFname, char* readsFname, char* alnsFname, aln_params_
 			align_reads_inexact(BWT, reads, sa_intv_table, params, alnsFname);
 		}
 	//}
-	printf("Total read alignment time: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	printf("Total read alignment processor time: %.2f sec. wall time: %.2f sec.\n", (float)(clock() - t) / CLOCKS_PER_SEC,(float)time() - begin);
 
 	free_bwt(BWT);
 	free_reads(reads);
