@@ -101,6 +101,7 @@ int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* pre
 	// process the reads in batches
 	int num_processed = 0;
 	while(num_processed < reads->count) {
+		time_t begin = time(NULL);
 		clock_t t = clock();
 		int batch_size = ((reads->count - num_processed) > READ_BATCH_SIZE ) ? READ_BATCH_SIZE : (reads->count - num_processed);
 
@@ -147,7 +148,7 @@ int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* pre
 			free(D_seed);
 			heap_free(heap);
 		}
-		printf("Processed %d reads. Inexact matching time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC);
+		printf("Processed %d reads. Inexact matching processor time: %.2f sec. wall time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC, (float)(time(NULL) - begin));
 
 		// write the results to file
 		clock_t ts = clock();

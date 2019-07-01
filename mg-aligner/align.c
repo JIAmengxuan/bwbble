@@ -50,10 +50,10 @@ int align_reads(char* fastaFname, char* readsFname, char* alnsFname, aln_params_
 	clock_t t = clock();
 	bwt_t* BWT = load_bwt(bwtFname, 0);
 	printf("Total BWT loading time: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
-	
+
 	t = clock();
 	reads_t* reads = fastq2reads(readsFname);
-	printf("Total read loading time: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);	
+	printf("Total read loading time: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	sa_intv_list_t* sa_intv_table = NULL;
 	if(params->use_precalc) {
@@ -66,16 +66,17 @@ int align_reads(char* fastaFname, char* readsFname, char* alnsFname, aln_params_
 	}
 
 	t = clock();
+	time_t begin = time(NULL);
 	//if(params->max_diff == 0) {
-		//align_reads_exact(BWT, reads, sa_intv_table, params, alnsFname);
+	//align_reads_exact(BWT, reads, sa_intv_table, params, alnsFname);
 	//} else {
-		if(params->n_threads > 1) {
-			align_reads_inexact_parallel(BWT, reads, sa_intv_table, params, alnsFname);
-		} else {
-			align_reads_inexact(BWT, reads, sa_intv_table, params, alnsFname);
-		}
+	if(params->n_threads > 1) {
+		align_reads_inexact_parallel(BWT, reads, sa_intv_table, params, alnsFname);
+	} else {
+		align_reads_inexact(BWT, reads, sa_intv_table, params, alnsFname);
+	}
 	//}
-	printf("Total read alignment time: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	printf("Total read alignment processor time: %.2f sec. wall time: %.2f sec.\n", (float)(clock() - t) / CLOCKS_PER_SEC,(float)time(NULL) - begin);
 
 	free_bwt(BWT);
 	free_reads(reads);
@@ -172,16 +173,16 @@ void load_sa_interval_list(sa_intv_list_t* intv_list, FILE* saFile) {
 	}
 }
 int read2index(char* read, int readLen) {
-  int index = 0;
-  for(int i = readLen-PRECALC_INTERVAL_LENGTH; i < readLen; i++) {
-	  if(read[i] >= NUM_NUCLEOTIDES) {
-		  // N's are treated as mismatches
-		  return -1;
-	  }
-	  index *= NUM_NUCLEOTIDES;
-	  index += read[i];
-  }
-  return index;
+	int index = 0;
+	for(int i = readLen-PRECALC_INTERVAL_LENGTH; i < readLen; i++) {
+		if(read[i] >= NUM_NUCLEOTIDES) {
+			// N's are treated as mismatches
+			return -1;
+		}
+		index *= NUM_NUCLEOTIDES;
+		index += read[i];
+	}
+	return index;
 }
 void next_read(read_t* read) {
 	read->seq[read->len-1]++;
@@ -302,7 +303,7 @@ void print_alignments(alns_t* alns) {
 	for(int j = 0; j < alns->num_entries; j++) {
 		aln_t aln = alns->entries[j];
 		printf("Alignment %d: SA(%" PRIbwtint_t ",%" PRIbwtint_t ") score = %d, num_mm = %u, num_go = %u, num_ge = %u, num_snps = %u, aln_length = %d\n",
-				j, aln.L, aln.U, aln.score, aln.num_mm, aln.num_gapo, aln.num_gape, aln.num_snps, 0);//, aln.aln_length);
+			   j, aln.L, aln.U, aln.score, aln.num_mm, aln.num_gapo, aln.num_gape, aln.num_snps, 0);//, aln.aln_length);
 		printf("\n");
 	}
 }
@@ -411,7 +412,7 @@ alns_t* alnsf2alns(int* n_alns, char *alnFname) {
 		for(int i = 0; i < read_alns->num_entries; i++) {
 			aln_t* aln = &(read_alns->entries[i]);
 			if(fscanf(alnFile, "%d\t%" SCNbwtint_t "\t%" SCNbwtint_t "\t%d\t%d\t%d\t%d\t", &(aln->score), &(aln->L), &(aln->U),
-					&(aln->num_mm), &(aln->num_gapo), &(aln->num_gape), /*&(aln->num_snps),*/ &(aln->aln_length)) != 7) {
+					  &(aln->num_mm), &(aln->num_gapo), &(aln->num_gape), /*&(aln->num_snps),*/ &(aln->aln_length)) != 7) {
 				load_alns_error(alnFname);
 			}
 			aln->aln_path = (char*) malloc(aln->aln_length*sizeof(char));
