@@ -3,4 +3,4 @@
 cmake-build-debug
 .DS_Store
 *.o
-mg-aligner/CMakeLists.txt
+/mg-aligner/CMakeLists.txt
