@@ -170,7 +170,7 @@ int align_reads_inexact_parallel(bwt_t *BWT, reads_t* reads, sa_intv_list_t* pre
 		printf("Storing results time: %.2f sec\n", (float)(clock() - ts) / CLOCKS_PER_SEC);
 		num_processed += batch_size;
 	}
-	printf("Total inexact matching processor time: %.2f sec. wall time: %.2f sec. (exclude the time of writing results to file)", total_time_pro, total_time_wall);
+	printf("Total inexact matching processor time: %.2f sec. wall time: %.2f sec. (exclude the time of writing results to file)\n", total_time_pro/ CLOCKS_PER_SEC, total_time_wall);
 	fclose(alnFile);
 	return 0;
 }
