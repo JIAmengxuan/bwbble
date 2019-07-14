@@ -101,6 +101,8 @@ int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* pre
 	}
 
 	// process the reads in batches
+	float total_time_wall = 0;
+	float total_time_pro  =0;
 	int num_processed = 0;
 	ThreadPool1 threadPool(static_cast<size_t>(params->n_threads));
 	while(num_processed < reads->count) {
@@ -154,8 +156,12 @@ int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* pre
 //			free(D_seed);
 //			heap_free(heap);
 //		}
-		printf("Processed %d reads. Inexact matching processor time: %.2f sec. wall time: %.2f sec.", num_processed+batch_size, (float)(clock() - t) / CLOCKS_PER_SEC, (float)(time(NULL) - begin));
-
+		time_t per_time_wall = time(NULL) - begin;
+		clock_t per_time_pro = clock() - t;
+		printf("Processed %d reads. Inexact matching processor time: %.2f sec. wall time: %.2f sec.\n", num_processed+batch_size, (float)(per_time_pro) / CLOCKS_PER_SEC, (float)(per_time_wall));
+		// calculate the total processor time and wall time.
+		total_time_pro += (float)per_time_pro;
+		total_time_wall += (float)per_time_wall;
 		// write the results to file
 		clock_t ts = clock();
 		for(int i = num_processed; i < num_processed + batch_size; i++) {
@@ -167,11 +173,11 @@ int align_reads_inexact_parallel(bwt_t* BWT, reads_t* reads, sa_intv_list_t* pre
 			free(read->qual);
 			read->seq = read->rc = read->qual = NULL;
 		}
-
 		printf("Storing results time: %.2f sec\n", (float)(clock() - ts) / CLOCKS_PER_SEC);
 		num_processed += batch_size;
 	}
-	threadPool.shutDown();	
+	threadPool.shutDown();
+	printf("Total inexact matching processor time: %.2f sec. wall time: %.2f sec.\n", total_time_pro / CLOCKS_PER_SEC, total_time_wall);
 	fclose(alnFile);
 	return 0;
 }
