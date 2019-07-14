@@ -63,7 +63,7 @@ int index_bwt(const char* fastaFname, const char* extSAFname) {
 }
 
 // Store the BWT to a file
-void store_bwt(const const bwt_t* BWT, const char* bwtFname) {
+void store_bwt(const bwt_t* BWT, const char* bwtFname) {
 	FILE* bwtFile = (FILE*) fopen(bwtFname, "wb");
 	if (bwtFile == NULL) {
 		printf("store_bwt: Cannot open the BWT file %s!\n", bwtFname);
